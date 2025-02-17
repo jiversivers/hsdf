@@ -3,12 +3,15 @@
 clear all; close all
 
 % Connect to LCTF
-lctf = vsInit("COM3");
+lctf = vsInit("COM9");
 
 % Connect to CMOS
-cmos = videoinput("hamamatsu", 1, "MONO16_2048x2048_FastMode");
+try cmos = videoinput("hamamatsu", 1, "MONO16_2048x2048_UltraQuiet");
+catch cmos = videoinput("hamamatsu", 1, "MONO16_2048x2048_FastMode");
+end
+triggerconfig(cmos, 'manual')
 src = getselectedsource(cmos);
-
+src.ExposureTimeControl = 'normal';
 %% Prep for acquisition
 % Define output folder
 d1 = inputdlg('Name folder to save images');
@@ -19,24 +22,26 @@ end
 
 % Array of filter wavelengths and respective integration times to iterate
 % through (example input paremeters, actual may vary)
-imgPar(1,:) = [400:10:720];    % nm
-imgPar(2,:) = 2.0;             % s
-
+imgPar(1,:) = [400:50:720];    % nm
+imgPar(2,:) = .5;             % s
 
 %% Preview and setting selection
 
 %% GUI
 % Initial Figure
 
-
-
-
 % Delete for actual operation (these are test lines when unconnected)
 % vidRes = [2048 2048];
 % nBands = 2^16;
 
-% Commented out for testing without cmos connection. Delete above line and
+% Commented out below for testing without cmos connection. Delete above line and
 % uncomment for actual operation
+
+% Preview mode
+previewWavelength = 600;
+previewExposure = .5;
+setWavelength(previewWavelength, lctf);
+src.ExposureTime = previewExposure;
 vidRes = cmos.VideoResolution;
 nBands = cmos.NumberOfBands;
 
@@ -44,8 +49,10 @@ hImage = image( zeros(vidRes(2), vidRes(1), nBands));
 
 % Start preview
 start(cmos)
+cmos.PreviewFullBitDepth = 'on';
 preview(cmos, hImage)
 uiwait(gcf)
+stop(cmos)
 disp('Capturing images...')
 
 %% Image acquistion
@@ -54,6 +61,7 @@ img = cell(1,length(imgPar));
 imgInfo = cell(1,length(imgPar));
 
 % Iterate through all wavelengths and image at each
+start(cmos)
 for i = 1:length(imgPar)
     
     % Tune LCTF
@@ -65,14 +73,16 @@ for i = 1:length(imgPar)
     % Collect metadata
     expTime = src.ExposureTime;
     filterWavelength = getWavelength(lctf);
+    fprintf('Image acquired at %dnm with integration of %0.3fs\n', filterWavelength, expTime)
     
     % Capture frame and metadata
     [img{i}, imgInfo{i}] = getsnapshot(cmos);
     imgInfo{i}.ExpTime = expTime;
     imgInfo{i}.Filter = filterWavelength;
+    
 end
+stop(cmos)
 
-%% Save data
 % Save images
 for i = 1:length(imgPar)
     filename = [d1{:}, '_', num2str(imgPar(1,i)), '.tif'];

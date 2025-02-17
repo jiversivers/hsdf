@@ -12,7 +12,7 @@ try %if ~isMATLABReleaseOlderThan("R2020b");
     % % Check the status
     % writeline(lctf, @)
     % status = readline(lctf)
-    % 
+    %  
     % if status ~= 11000010
     % 
     %     write(lctf '')
@@ -55,7 +55,7 @@ catch
     
     % Send serial command to (A)waken the LCTF (need to add serial number)
     fprintf(lctf,"A ");
-    fget(lctf);
+    fgets(lctf);
     
     % Query current Status
     fprintf(lctf, "A ?");
